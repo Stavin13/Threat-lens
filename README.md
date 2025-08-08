@@ -1,4 +1,5 @@
 # ThreatLens
+AI-Powered macOS Log Intelligence
 
 An AI-powered security log analysis system that ingests security logs, parses events, performs AI-driven threat analysis, and generates comprehensive security reports.
 
@@ -22,8 +23,8 @@ An AI-powered security log analysis system that ingests security logs, parses ev
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd threat-lens
+git clone https://github.com/Stavin13/Threat-lens.git
+cd Threat-lens
 ```
 
 2. Install dependencies:
@@ -50,8 +51,11 @@ threat-lens/
 ├── app/
 │   ├── __init__.py
 │   ├── models.py          # SQLAlchemy database models
+│   ├── schemas.py         # Pydantic data models and validation
+│   ├── validation.py      # Data validation functions
 │   ├── database.py        # Database connection utilities
 │   └── init_db.py         # Database initialization script
+├── tests/                 # Unit tests
 ├── data/                  # Database files (gitignored)
 ├── reports/              # Generated PDF reports (gitignored)
 ├── logs/                 # Application logs (gitignored)
@@ -78,9 +82,23 @@ The system uses four main tables:
 - Initialize database: `python app/init_db.py`
 - Check database health: Use the health check utilities in `app/database.py`
 
+### Testing
+
+Run the test suite:
+```bash
+python -m pytest tests/ -v
+```
+
 ### API Development
 
 The system is built with FastAPI and follows REST API conventions. See the specification documents in `.kiro/specs/threat-lens/` for detailed requirements and design.
+
+## Implementation Progress
+
+- ✅ **Task 1**: Project structure and dependencies
+- ✅ **Task 2**: Database models and connection utilities  
+- ✅ **Task 3**: Core data models and validation
+- 🔄 **Task 4**: Log ingestion module (next)
 
 ## Contributing
 
