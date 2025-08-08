@@ -146,6 +146,9 @@ logs/*.log
 # Frontend (separate repository)
 frontend/
 
+# Kiro IDE files (specs, steering, etc.)
+.kiro/
+
 # OS specific
 .DS_Store
 .DS_Store?
