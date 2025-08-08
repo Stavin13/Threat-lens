@@ -14,7 +14,7 @@
   - Write database utility functions for connection management and health checks
   - _Requirements: 2.5, 3.4, 5.2_
 
-- [ ] 3. Create core data models and validation
+- [x] 3. Create core data models and validation
   - Implement Pydantic models for API requests and responses (IngestionRequest, ParsedEvent, AIAnalysis, EventResponse)
   - Create validation functions for event data integrity and API input validation
   - Implement enum classes for EventCategory and other constants
