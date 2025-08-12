@@ -143,11 +143,17 @@ data/*.db-*
 reports/*.pdf
 logs/*.log
 
-# Frontend (separate repository)
-frontend/
+# Frontend build artifacts
+frontend/build/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
 
-# Kiro IDE files (specs, steering, etc.)
-.kiro/
+# Kiro IDE cache files (but keep specs)
+.kiro/cache/
+.kiro/logs/
 
 # OS specific
 .DS_Store
