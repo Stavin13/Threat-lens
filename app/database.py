@@ -105,8 +105,19 @@ def init_database():
         engine = create_database_engine()
         Base.metadata.create_all(bind=engine)
         
+        # Run database migrations
+        from app.migrations.runner import MigrationRunner
+        migration_runner = MigrationRunner(DATABASE_URL)
+        migration_success = migration_runner.run_migrations()
+        
+        if not migration_success:
+            logger.warning("Some database migrations failed, but continuing with initialization")
+        else:
+            logger.info("Database migrations completed successfully")
+        
         # Create indexes for better query performance
         with engine.connect() as conn:
+            # Existing indexes
             # Index on events timestamp for time-based queries
             conn.execute(text("""
                 CREATE INDEX IF NOT EXISTS idx_events_timestamp 
@@ -135,6 +146,51 @@ def init_database():
             conn.execute(text("""
                 CREATE INDEX IF NOT EXISTS idx_events_timestamp_category 
                 ON events(timestamp, category)
+            """))
+            
+            # New indexes for real-time monitoring
+            # Index on log_sources for efficient lookups
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_log_sources_name 
+                ON log_sources(source_name)
+            """))
+            
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_log_sources_path 
+                ON log_sources(path)
+            """))
+            
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_log_sources_enabled 
+                ON log_sources(enabled)
+            """))
+            
+            # Index on processing_metrics for time-based queries
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_processing_metrics_timestamp 
+                ON processing_metrics(timestamp)
+            """))
+            
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_processing_metrics_source 
+                ON processing_metrics(source_name)
+            """))
+            
+            # Index on notification_history for efficient queries
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_notification_history_event 
+                ON notification_history(event_id)
+            """))
+            
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_notification_history_status 
+                ON notification_history(status)
+            """))
+            
+            # Index on events for real-time processing fields
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_events_realtime_processed 
+                ON events(realtime_processed)
             """))
             
             conn.commit()
@@ -172,11 +228,13 @@ def check_database_health() -> dict:
         with engine.connect() as conn:
             result = conn.execute(text("""
                 SELECT name FROM sqlite_master 
-                WHERE type='table' AND name IN ('raw_logs', 'events', 'ai_analysis', 'reports')
+                WHERE type='table' AND name IN ('raw_logs', 'events', 'ai_analysis', 'reports', 
+                'monitoring_config', 'log_sources', 'processing_metrics', 'notification_history')
             """))
             tables = [row[0] for row in result]
             
-            expected_tables = {'raw_logs', 'events', 'ai_analysis', 'reports'}
+            expected_tables = {'raw_logs', 'events', 'ai_analysis', 'reports', 
+                             'monitoring_config', 'log_sources', 'processing_metrics', 'notification_history'}
             health_status["tables_exist"] = expected_tables.issubset(set(tables))
             health_status["existing_tables"] = tables
         
@@ -199,6 +257,10 @@ def get_database_stats() -> dict:
         "events_count": 0,
         "ai_analysis_count": 0,
         "reports_count": 0,
+        "log_sources_count": 0,
+        "monitoring_configs_count": 0,
+        "processing_metrics_count": 0,
+        "notification_history_count": 0,
         "error": None
     }
     
@@ -209,6 +271,27 @@ def get_database_stats() -> dict:
             stats["events_count"] = db.execute(text("SELECT COUNT(*) FROM events")).scalar()
             stats["ai_analysis_count"] = db.execute(text("SELECT COUNT(*) FROM ai_analysis")).scalar()
             stats["reports_count"] = db.execute(text("SELECT COUNT(*) FROM reports")).scalar()
+            
+            # New real-time monitoring tables
+            try:
+                stats["log_sources_count"] = db.execute(text("SELECT COUNT(*) FROM log_sources")).scalar()
+            except:
+                stats["log_sources_count"] = 0  # Table might not exist yet
+            
+            try:
+                stats["monitoring_configs_count"] = db.execute(text("SELECT COUNT(*) FROM monitoring_config")).scalar()
+            except:
+                stats["monitoring_configs_count"] = 0
+            
+            try:
+                stats["processing_metrics_count"] = db.execute(text("SELECT COUNT(*) FROM processing_metrics")).scalar()
+            except:
+                stats["processing_metrics_count"] = 0
+            
+            try:
+                stats["notification_history_count"] = db.execute(text("SELECT COUNT(*) FROM notification_history")).scalar()
+            except:
+                stats["notification_history_count"] = 0
             
     except Exception as e:
         stats["error"] = str(e)

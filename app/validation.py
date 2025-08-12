@@ -307,6 +307,33 @@ def sanitize_log_content(content: str) -> str:
     # Remove other control characters except newlines, tabs, and carriage returns
     sanitized = re.sub(r'[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]', '', content)
     
+    # Remove potential script injection patterns
+    # Remove HTML/XML tags
+    sanitized = re.sub(r'<[^>]*>', '', sanitized)
+    
+    # Remove JavaScript-like patterns
+    sanitized = re.sub(r'javascript:', '', sanitized, flags=re.IGNORECASE)
+    sanitized = re.sub(r'on\w+\s*=', '', sanitized, flags=re.IGNORECASE)
+    
+    # Remove SQL injection patterns
+    sql_patterns = [
+        r'(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b)',
+        r'(--|#|/\*|\*/)',
+        r'(\bor\b\s+\d+\s*=\s*\d+)',
+        r'(\band\b\s+\d+\s*=\s*\d+)'
+    ]
+    for pattern in sql_patterns:
+        sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE)
+    
+    # Remove potential command injection patterns
+    cmd_patterns = [
+        r'[;&|`$(){}[\]\\]',  # Shell metacharacters
+        r'\$\([^)]*\)',       # Command substitution
+        r'`[^`]*`'            # Backtick command substitution
+    ]
+    for pattern in cmd_patterns:
+        sanitized = re.sub(pattern, '', sanitized)
+    
     # Normalize line endings
     sanitized = re.sub(r'\r\n|\r', '\n', sanitized)
     
@@ -320,6 +347,86 @@ def sanitize_log_content(content: str) -> str:
             cleaned_lines.append(cleaned_line)
     
     return '\n'.join(cleaned_lines)
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize filename to prevent directory traversal and other attacks.
+    
+    Args:
+        filename: Original filename
+        
+    Returns:
+        Sanitized filename
+    """
+    if not isinstance(filename, str):
+        return "unknown_file"
+    
+    # Remove directory traversal patterns
+    filename = filename.replace('..', '')
+    filename = filename.replace('/', '')
+    filename = filename.replace('\\', '')
+    
+    # Remove null bytes and control characters
+    filename = re.sub(r'[\x00-\x1F\x7F]', '', filename)
+    
+    # Keep only alphanumeric, dots, hyphens, and underscores
+    filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+    
+    # Ensure filename is not empty and not too long
+    if not filename or filename == '.' or filename == '..':
+        filename = "sanitized_file"
+    
+    if len(filename) > 255:
+        filename = filename[:255]
+    
+    return filename
+
+
+def sanitize_source_identifier(source: str) -> str:
+    """
+    Sanitize source identifier to prevent injection attacks.
+    
+    Args:
+        source: Original source identifier
+        
+    Returns:
+        Sanitized source identifier
+    """
+    if not isinstance(source, str):
+        return "unknown_source"
+    
+    # Remove null bytes and control characters
+    source = re.sub(r'[\x00-\x1F\x7F]', '', source)
+    
+    # Remove potential injection patterns
+    source = re.sub(r'[<>"\';\\]', '', source)
+    
+    # Remove SQL keywords and patterns
+    sql_keywords = [
+        r'\bDROP\b', r'\bTABLE\b', r'\bSELECT\b', r'\bINSERT\b', r'\bUPDATE\b',
+        r'\bDELETE\b', r'\bUNION\b', r'\bWHERE\b', r'\bFROM\b', r'\bINTO\b',
+        r'\bVALUES\b', r'\bCREATE\b', r'\bALTER\b', r'\bEXEC\b', r'\bEXECUTE\b'
+    ]
+    for keyword in sql_keywords:
+        source = re.sub(keyword, '', source, flags=re.IGNORECASE)
+    
+    # Remove comment patterns
+    source = re.sub(r'--.*$', '', source, flags=re.MULTILINE)
+    source = re.sub(r'/\*.*?\*/', '', source, flags=re.DOTALL)
+    
+    # Limit length
+    if len(source) > 255:
+        source = source[:255]
+    
+    # Clean up extra spaces
+    source = re.sub(r'\s+', ' ', source).strip()
+    
+    # Ensure not empty
+    if not source:
+        source = "sanitized_source"
+    
+    return source
 
 
 def validate_file_upload(file_content: bytes, filename: str) -> Tuple[bool, Optional[str]]:
@@ -346,15 +453,124 @@ def validate_file_upload(file_content: bytes, filename: str) -> Tuple[bool, Opti
     if not filename or not isinstance(filename, str):
         return False, "Invalid filename"
     
+    # Sanitize filename
+    sanitized_filename = sanitize_filename(filename)
+    
     # Check for potentially dangerous file extensions
-    dangerous_extensions = ['.exe', '.bat', '.cmd', '.com', '.scr', '.pif', '.vbs', '.js']
-    file_ext = filename.lower().split('.')[-1] if '.' in filename else ''
+    dangerous_extensions = [
+        '.exe', '.bat', '.cmd', '.com', '.scr', '.pif', '.vbs', '.js', '.jar',
+        '.msi', '.deb', '.rpm', '.dmg', '.app', '.ps1', '.sh', '.php', '.asp',
+        '.aspx', '.jsp', '.py', '.rb', '.pl', '.cgi'
+    ]
+    file_ext = sanitized_filename.lower().split('.')[-1] if '.' in sanitized_filename else ''
     if f'.{file_ext}' in dangerous_extensions:
         return False, f"File type not allowed: .{file_ext}"
     
-    # Try to decode as text
+    # Check for allowed extensions
+    allowed_extensions = ['.log', '.txt', '.out', '.csv', '.json']
+    if f'.{file_ext}' not in allowed_extensions:
+        return False, f"File type not supported. Allowed types: {', '.join(allowed_extensions)}"
+    
+    # Check for binary file signatures (magic bytes)
+    if len(file_content) >= 4:
+        # Check for common executable signatures
+        magic_bytes = file_content[:4]
+        dangerous_signatures = [
+            b'\x4d\x5a',  # PE executable (MZ)
+            b'\x7f\x45\x4c\x46',  # ELF executable
+            b'\xca\xfe\xba\xbe',  # Java class file
+            b'\x50\x4b\x03\x04',  # ZIP file (could contain executables)
+            b'\x1f\x8b\x08',  # GZIP file
+            b'\x42\x5a\x68',  # BZIP2 file
+        ]
+        
+        for signature in dangerous_signatures:
+            if file_content.startswith(signature):
+                return False, "Binary or compressed files are not allowed"
+    
+    # Check for suspicious patterns in file content
     try:
-        content_str = file_content.decode('utf-8', errors='ignore')
+        # Try to decode as text with multiple encodings
+        content_str = None
+        encodings = ['utf-8', 'latin-1', 'ascii', 'utf-16']
+        
+        for encoding in encodings:
+            try:
+                content_str = file_content.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        
+        if content_str is None:
+            return False, "File encoding not supported"
+        
+        # Check for suspicious patterns
+        suspicious_patterns = [
+            r'<script[^>]*>',  # JavaScript
+            r'eval\s*\(',      # Code evaluation
+            r'exec\s*\(',      # Code execution
+            r'system\s*\(',    # System calls
+            r'shell_exec\s*\(',  # Shell execution
+            r'passthru\s*\(',  # Command execution
+            r'base64_decode\s*\(',  # Base64 decoding (often used in attacks)
+        ]
+        
+        for pattern in suspicious_patterns:
+            if re.search(pattern, content_str, re.IGNORECASE):
+                return False, f"File contains suspicious content pattern: {pattern}"
+        
+        # Validate as log content
         return validate_log_content(content_str)
+        
     except Exception as e:
         return False, f"Failed to process file content: {str(e)}"
+
+
+def validate_api_key(api_key: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate API key format and structure.
+    
+    Args:
+        api_key: API key to validate
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not isinstance(api_key, str):
+        return False, "API key must be a string"
+    
+    if not api_key.strip():
+        return False, "API key cannot be empty"
+    
+    # Check length (typical API keys are 32-128 characters)
+    if len(api_key) < 16 or len(api_key) > 256:
+        return False, "API key length invalid"
+    
+    # Check for valid characters (alphanumeric and common symbols)
+    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', api_key):
+        return False, "API key contains invalid characters"
+    
+    return True, None
+
+
+def validate_request_size(content_length: Optional[int], max_size: int = 50 * 1024 * 1024) -> Tuple[bool, Optional[str]]:
+    """
+    Validate request content size.
+    
+    Args:
+        content_length: Content length from request headers
+        max_size: Maximum allowed size in bytes
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if content_length is None:
+        return True, None  # Allow requests without content-length header
+    
+    if content_length > max_size:
+        return False, f"Request too large: {content_length} bytes (max: {max_size} bytes)"
+    
+    if content_length < 0:
+        return False, "Invalid content length"
+    
+    return True, None

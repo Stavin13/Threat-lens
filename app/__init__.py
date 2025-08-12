@@ -1,7 +1,7 @@
 """
 ThreatLens application package.
 """
-from .models import Base, RawLog, Event, AIAnalysis, Report
+from .models import Base, RawLog, Event, AIAnalysis, Report, MonitoringConfigDB, LogSource, ProcessingMetricsDB, NotificationHistory
 from .database import (
     get_database_session,
     get_db_session,
@@ -30,6 +30,10 @@ __all__ = [
     "Event",
     "AIAnalysis",
     "Report",
+    "MonitoringConfigDB",
+    "LogSource",
+    "ProcessingMetricsDB",
+    "NotificationHistory",
     # Database functions
     "get_database_session",
     "get_db_session", 
