@@ -146,10 +146,16 @@ logs/*.log
 # Frontend build artifacts
 frontend/build/
 frontend/node_modules/
+frontend/.next/
 frontend/.env.local
 frontend/.env.development.local
 frontend/.env.test.local
 frontend/.env.production.local
+
+# Backend data and logs
+backend/data/*.db
+backend/data/*.db-*
+backend/logs/*.log*
 
 # Kiro IDE cache files (but keep specs)
 .kiro/cache/
