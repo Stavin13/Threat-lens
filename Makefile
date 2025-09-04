@@ -22,7 +22,7 @@ help:
 # Development setup
 install:
 	@echo "Installing Python dependencies..."
-	pip install -r requirements.txt
+	cd backend && pip install -r requirements.txt
 	@echo "Installing frontend dependencies..."
 	cd frontend && npm install
 
@@ -61,13 +61,13 @@ clean:
 # Testing
 test:
 	@echo "Running backend tests..."
-	pytest
+	cd backend && pytest
 	@echo "Running frontend tests..."
 	cd frontend && npm test -- --run
 
 test-coverage:
 	@echo "Running tests with coverage..."
-	pytest --cov=app --cov-report=html
+	cd backend && pytest --cov=app --cov-report=html
 	cd frontend && npm test -- --coverage --run
 
 # Deployment
@@ -87,17 +87,17 @@ backup:
 # Database operations
 db-init:
 	@echo "Initializing database..."
-	python setup_env.py
+	cd backend && python setup_env.py
 
 db-reset:
 	@echo "Resetting database..."
-	rm -f data/threatlens.db*
-	python setup_env.py
+	rm -f backend/data/threatlens.db*
+	cd backend && python setup_env.py
 
 # Demo
 demo:
 	@echo "Loading demo data..."
-	python demo_data_loader.py
+	cd backend && python demo_data_loader.py
 
 # Health check
 health:
@@ -108,7 +108,7 @@ health:
 # Development server (without Docker)
 dev-backend:
 	@echo "Starting backend development server..."
-	uvicorn main:app --reload --host 0.0.0.0 --port 8000
+	cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 dev-frontend:
 	@echo "Starting frontend development server..."
@@ -117,13 +117,13 @@ dev-frontend:
 # Linting and formatting
 lint:
 	@echo "Running Python linting..."
-	flake8 app/ tests/
+	cd backend && flake8 app/ tests/
 	@echo "Running frontend linting..."
 	cd frontend && npm run lint
 
 format:
 	@echo "Formatting Python code..."
-	black app/ tests/
+	cd backend && black app/ tests/
 	@echo "Formatting frontend code..."
 	cd frontend && npm run format
 
@@ -136,4 +136,4 @@ security-scan:
 # Performance test
 perf-test:
 	@echo "Running performance tests..."
-	python tests/stress_test_realtime_system.py
+	cd backend && python tests/stress_test_realtime_system.py

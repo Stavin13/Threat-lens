@@ -191,7 +191,11 @@ class GroqAnalyzer:
             return self._create_analysis_from_response(event, result)
             
         except Exception as e:
-            logger.error(f"Groq API call failed: {str(e)}")
+            error_msg = str(e)
+            if "429" in error_msg or "rate limit" in error_msg.lower():
+                logger.warning(f"Groq API rate limit exceeded, falling back to rule-based analysis")
+            else:
+                logger.error(f"Groq API call failed: {error_msg}")
             return None
     
     def _analyze_with_rules(self, event: ParsedEvent) -> AIAnalysis:
@@ -305,6 +309,13 @@ Always respond with valid JSON containing severity_score, explanation, and recom
             AnalysisError: If response format is invalid
         """
         try:
+            # Handle nested response format (e.g., {"security_log_event": {...}})
+            if 'security_log_event' in response:
+                response = response['security_log_event']
+            elif len(response) == 1 and isinstance(list(response.values())[0], dict):
+                # Handle any single-key nested format
+                response = list(response.values())[0]
+            
             severity = response.get('severity_score', 1)
             explanation = response.get('explanation', 'No explanation provided')
             recommendations = response.get('recommendations', ['Review manually'])

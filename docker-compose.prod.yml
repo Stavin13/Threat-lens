@@ -3,8 +3,8 @@ version: '3.8'
 services:
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile.backend
+      context: ./backend
+      dockerfile: ../Dockerfile.backend
     container_name: threatlens-backend-prod
     environment:
       - ENVIRONMENT=production
@@ -35,8 +35,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend
     container_name: threatlens-frontend-prod
     ports:
       - "80:80"
