@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Proxy Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        .loading { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>ThreatLens Proxy Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        async function testEndpoint(name, url) {
+            results.innerHTML += `<p class="loading">Testing ${name}...</p>`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                results.innerHTML += `<p class="success">✅ ${name}: Success</p>`;
+                results.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                
+                return data;
+            } catch (error) {
+                results.innerHTML += `<p class="error">❌ ${name}: ${error.message}</p>`;
+                return null;
+            }
+        }
+        
+        async function runTests() {
+            results.innerHTML = '<h2>Running Tests...</h2>';
+            
+            // Test health endpoint
+            await testEndpoint('Health Check', '/health-simple');
+            
+            // Test stats endpoint
+            const stats = await testEndpoint('Stats', '/stats');
+            
+            // Test events endpoint
+            const events = await testEndpoint('Events', '/events?per_page=3');
+            
+            // Summary
+            results.innerHTML += '<h2>Summary</h2>';
+            if (stats && stats.database && stats.database.events_count) {
+                results.innerHTML += `<p class="success">✅ Backend has ${stats.database.events_count} events</p>`;
+            }
+            
+            if (events && events.events && events.events.length > 0) {
+                results.innerHTML += `<p class="success">✅ Events endpoint returned ${events.events.length} events</p>`;
+                results.innerHTML += `<p>First event: ${events.events[0].message.substring(0, 100)}...</p>`;
+            }
+            
+            results.innerHTML += '<p><strong>If all tests pass, the API connection is working!</strong></p>';
+        }
+        
+        runTests();
+    </script>
+</body>
+</html>

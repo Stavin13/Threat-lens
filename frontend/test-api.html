@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>ThreatLens API Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testAPI() {
+            const results = document.getElementById('results');
+            
+            // Test direct connection to backend
+            try {
+                console.log('Testing direct connection to backend...');
+                const response = await fetch('http://localhost:8000/health-simple');
+                const data = await response.json();
+                results.innerHTML += `<p><strong>Direct Backend:</strong> ✅ ${JSON.stringify(data)}</p>`;
+            } catch (error) {
+                results.innerHTML += `<p><strong>Direct Backend:</strong> ❌ ${error.message}</p>`;
+            }
+            
+            // Test proxy connection
+            try {
+                console.log('Testing proxy connection...');
+                const response = await fetch('/health-simple');
+                const data = await response.json();
+                results.innerHTML += `<p><strong>Proxy:</strong> ✅ ${JSON.stringify(data)}</p>`;
+            } catch (error) {
+                results.innerHTML += `<p><strong>Proxy:</strong> ❌ ${error.message}</p>`;
+            }
+            
+            // Test stats endpoint
+            try {
+                console.log('Testing stats endpoint...');
+                const response = await fetch('/stats');
+                const data = await response.json();
+                results.innerHTML += `<p><strong>Stats:</strong> ✅ Events: ${data.database?.events_count || 'N/A'}</p>`;
+            } catch (error) {
+                results.innerHTML += `<p><strong>Stats:</strong> ❌ ${error.message}</p>`;
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>
